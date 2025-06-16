@@ -1,0 +1,9 @@
+# Terraform state files
+*.tfstate
+*.tfstate.*
+# Terraform metadata
+.terraform/
+# Private key
+p_key
+# K8s Token creds file
+creds
