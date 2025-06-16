@@ -1,0 +1,29 @@
+---
+- name: Initialize Kubernetes Master Node
+  hosts: k8s_nodes
+  become: true
+  vars:
+    pod_network_cidr: "10.244.0.0/16"
+
+  tasks:
+    - name: Set join token
+      shell: cat ./creds | head -n1
+      register: join_token
+      delegate_to: localhost
+      become: false
+      become_user: "{{ ansible_user }}"
+
+    - name: Set join hash
+      shell: cat ./creds | tail -n1
+      register: join_hash
+      delegate_to: localhost
+      become: false
+      become_user: "{{ ansible_user }}"
+
+    - name: Join k8s cluster
+      command: kubeadm join 192.168.178.230:6443 --token {{ join_token.stdout }} --discovery-token-ca-cert-hash {{ join_hash.stdout }}
+      register: kubeadm_join
+
+    - name: Stdout worker info
+      debug:
+        var: "{{ kubeadm_join.stdout }}"

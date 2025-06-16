@@ -1,0 +1,74 @@
+---
+- name: Initialize Kubernetes Master Node
+  hosts: k8s_master
+  become: true
+  vars:
+    pod_network_cidr: "10.244.0.0/16"
+  
+  tasks:
+    - name: Initialize Kubernetes cluster
+      command: kubeadm init --pod-network-cidr={{ pod_network_cidr }} --control-plane-endpoint={{ ansible_host }} --node-name k8s-master
+      register: kubeadm_init
+      args:
+        creates: /etc/kubernetes/admin.conf
+
+    - name: Create .kube directory in user's home
+      file:
+        path: "/home/{{ ansible_user }}/.kube"
+        state: directory
+        mode: '0755'
+
+    - name: Copy kube admin config to user's home directory
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: "/home/{{ ansible_user }}/.kube/config"
+        remote_src: yes
+        mode: '0600'
+
+    - name: Set ownership of kube config file
+      file:
+        path: "/home/{{ ansible_user }}/.kube/config"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+
+    - name: Apply Flannel network
+      command: kubectl --kubeconfig=/home/{{ ansible_user }}/.kube/config apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+      changed_when: false
+      become: false
+
+    - name: Wait for Flannel pods to be ready
+      command: kubectl --kubeconfig=/home/{{ ansible_user }}/.kube/config wait --for=condition=Ready pods -l app=flannel --namespace kube-flannel --timeout=300s
+      register: flannel_status
+      until: "'met'in flannel_status.stdout"
+      retries: 30
+      delay: 2
+      become: false
+
+    - name: Get cluster status
+      command: kubectl --kubeconfig=/home/{{ ansible_user }}/.kube/config get nodes
+      register: cluster_status
+      changed_when: false
+      become: false
+
+    - name: Display cluster status
+      debug:
+        var: cluster_status.stdout_lines
+      become: false
+
+    - name: Display Cluster info
+      debug:
+        var: kubeadm_init.stdout_lines
+      become: false
+
+    - name: Save cluster join token and hash
+      local_action:
+        module: shell
+        cmd: |
+          echo "{{ kubeadm_init.stdout_lines | join('\n') }}" | grep -oP '\-\-token\s+\K[^ ]+' | head -n1 > ./creds
+          echo "{{ kubeadm_init.stdout_lines | join('\n') }}" | grep -oP '\-\-discovery-token-ca-cert-hash\s+\K[^ ]+' | head -n1 >> ./creds
+      become: false
+      become_user: "{{ ansible_user }}" 
+      run_once: true
+      args:
+        executable: /bin/bash
+

@@ -1,0 +1,30 @@
+---
+all:
+  children:
+    k8s_master:
+      hosts:
+        k8s-master:
+          ansible_host: 192.168.178.230
+    
+    k8s_nodes:
+      hosts:
+        k8s-node1:
+          ansible_host: 192.168.178.131
+        k8s-node2:
+          ansible_host: 192.168.178.132
+        k8s-node3:
+          ansible_host: 192.168.178.133
+    
+    k8s_cluster:
+      children:
+        k8s_master: {}
+        k8s_nodes: {}
+      vars:
+        cluster_network: 192.168.178.0/24
+        pod_network_cidr: 10.244.0.0/16
+        kubernetes_version: 1.33.0
+  
+  vars:
+    ansible_user: skob
+    ansible_become: true
+    ansible_ssh_private_key_file: ../p_key 
