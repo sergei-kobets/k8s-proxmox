@@ -9,7 +9,7 @@ resource "proxmox_vm_qemu" "k8s-nodes" {
   name = "k8s-node${count.index + 1}"
   target_node = "node1"
   clone = "vmtemp"
-  memory = 2048
+  memory = 3512
   agent = 1
 
   scsihw = "virtio-scsi-pci"
