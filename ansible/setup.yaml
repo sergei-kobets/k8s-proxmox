@@ -14,6 +14,7 @@
               - curl
               - gpg
               - ca-certificates  
+              - nfs-common
             state: present
 
         - name: Create keyrings directory
